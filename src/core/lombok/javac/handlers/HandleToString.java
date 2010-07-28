@@ -23,6 +23,8 @@ package lombok.javac.handlers;
 
 import static lombok.javac.handlers.JavacHandlerUtil.*;
 
+import javax.lang.model.element.TypeElement;
+
 import lombok.ToString;
 import lombok.core.AnnotationValues;
 import lombok.core.AST.Kind;
@@ -167,6 +169,25 @@ public class HandleToString implements JavacAnnotationHandler<ToString> {
 	
 	private JCMethodDecl createToString(JavacNode typeNode, List<JavacNode> fields, boolean includeFieldNames, boolean callSuper, boolean useFieldsDirectly) {
 		TreeMaker maker = typeNode.getTreeMaker();
+		
+		TypeElement self = (TypeElement) typeNode.resolve();
+		if (self == null) System.out.println("self == null");
+		if (self.getSuperclass() == null) System.out.println("self.getSc() == null");
+		if (typeNode.typeMirrorToElement(self.getSuperclass()) == null) System.out.println("typeMirrorToElement == null");
+		System.out.println("Elements of superclass: " + typeNode.typeMirrorToElement(self.getSuperclass()).getEnclosedElements());
+		
+		/*
+		 * - Handler calls our API to ask for e.g.:
+		 *    A. Give me a mirror thingie for "foo.bar.baz.Clazz"
+		 *    B. Given this JCMethodDeclaration, I want the mirror thingie for the return type.
+		 *    C. Given this JCApply, I want the mirror thingie for the method we call.
+		 *    D. Given this JCClassDecl, give me the superclass mirror thingie.
+		 * 
+		 * - Use either x.sym or just get the getTypeUtils() thing to get an Element class.
+		 * - Use getElemUtils() to see if there's an associated JCTree node. If yes, run lombok on the top level [with loop detection].
+		 * - return the mirror object requested.
+		 */
+		
 		
 		JCAnnotation overrideAnnotation = maker.Annotation(chainDots(maker, typeNode, "java", "lang", "Override"), List.<JCExpression>nil());
 		JCModifiers mods = maker.Modifiers(Flags.PUBLIC, List.of(overrideAnnotation));
