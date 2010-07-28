@@ -106,7 +106,7 @@ public class CommentPreservingParser {
 			cu = unit;
 		}
 		
-		boolean changed = new JavacTransformer(messager).transform(context, Collections.singleton(cu));
+		boolean changed = new JavacTransformer(messager).transform(context, Collections.singletonList(cu));
 		return new ParseResult(comments.comments, cu, forceProcessing || changed);
 	}
 	

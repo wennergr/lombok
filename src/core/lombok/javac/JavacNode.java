@@ -23,22 +23,29 @@ package lombok.javac;
 
 import java.util.List;
 
+import javax.lang.model.element.Element;
+import javax.lang.model.type.TypeMirror;
 import javax.tools.Diagnostic;
 
 import lombok.core.AST.Kind;
 
 import com.sun.tools.javac.code.Symtab;
+import com.sun.tools.javac.model.JavacElements;
+import com.sun.tools.javac.model.JavacTypes;
 import com.sun.tools.javac.tree.JCTree;
 import com.sun.tools.javac.tree.TreeMaker;
 import com.sun.tools.javac.tree.JCTree.JCAnnotation;
 import com.sun.tools.javac.tree.JCTree.JCBlock;
 import com.sun.tools.javac.tree.JCTree.JCClassDecl;
 import com.sun.tools.javac.tree.JCTree.JCCompilationUnit;
+import com.sun.tools.javac.tree.JCTree.JCFieldAccess;
+import com.sun.tools.javac.tree.JCTree.JCIdent;
 import com.sun.tools.javac.tree.JCTree.JCMethodDecl;
 import com.sun.tools.javac.tree.JCTree.JCVariableDecl;
 import com.sun.tools.javac.util.Context;
 import com.sun.tools.javac.util.Name;
 import com.sun.tools.javac.util.JCDiagnostic.DiagnosticPosition;
+import com.sun.tools.javac.util.Pair;
 
 /**
  * Javac specific version of the LombokNode class.
@@ -157,6 +164,85 @@ public class JavacNode extends lombok.core.LombokNode<JavacAST, JavacNode, JCTre
 			if (childAnnotation == annotation) return true;
 		}
 		return false;
+	}
+	
+	/**
+	 * Resolves the current node (If a select, ident, method/constructor declaration, field declaration, or type declaration) to a javax.model Element.
+	 * 
+	 * TODO resolution
+	 */
+	public Element resolve() {
+		Element result = resolve0();
+		System.out.println("result = " + result);
+		if (result == null) return null;
+		
+		Pair<JCTree,JCCompilationUnit> pair = ast.getElementUtils().getTreeAndTopLevel(result, null, null);
+		if (pair == null || pair.snd == null) return result;
+		ensureLombokHasProcessed(pair.snd);
+		return result;
+	}
+	
+	/**
+	 * Resolves the current node as per {@link #resolve()}. If the element is then local to this compilation unit, returns the node associated with it.
+	 * Modifying nodes outside of the local file is not supported by lombok, hence null is returned if thats the case.
+	 * 
+	 * TODO resolution
+	 */
+	public JCTree resolveLocal() {
+		Element result = resolve0();
+		if (result == null) return null;
+		
+		Pair<JCTree,JCCompilationUnit> pair = getElementUtils().getTreeAndTopLevel(result, null, null);
+		if (pair != null && pair.snd == top().get()) return pair.fst;
+		
+		return null;
+	}
+	
+	/**
+	 * TODO resolution
+	 */
+	public Element typeMirrorToElement(TypeMirror mirror) {
+		return getTypeUtils().asElement(mirror);
+	}
+	
+	/**
+	 * TODO resolution
+	 */
+	public JavacTypes getTypeUtils() {
+		return ast.getTypeUtils();
+	}
+	
+	/**
+	 * TODO resolution
+	 */
+	public JavacElements getElementUtils() {
+		return ast.getElementUtils();
+	}
+	
+	/**
+	 * Supply something like package.Outer$Inner
+	 * 
+	 * TODO resolution
+	 */
+	public Element resolveType(String type) {
+		return getElementUtils().getTypeElement(type);
+	}
+	
+	private void ensureLombokHasProcessed(JCCompilationUnit compilationUnit) {
+		//TODO Create a cache to track which JCCUs have already (or are in the middle of) processing, do nothing if in it, otherwise, add to it, then process.
+		
+		// Problem: Running lombok on target CU is all fun and games, but I don't see how that's going to result in an update to the backing Element stuff; i.e.
+		// it won't rerun the Env/Attr phase. Maybe we can force it, but we'd have to first force it, then force the local CU, and then re-apply resolve0().
+	}
+	
+	private Element resolve0() {
+		if (node instanceof JCVariableDecl) return ((JCVariableDecl)node).sym;
+		if (node instanceof JCClassDecl) return ((JCClassDecl)node).sym;
+		if (node instanceof JCMethodDecl) return ((JCMethodDecl)node).sym;
+		if (node instanceof JCFieldAccess) return ((JCFieldAccess)node).sym;
+		if (node instanceof JCIdent) return ((JCIdent)node).sym;
+		
+		return null;
 	}
 	
 	/**

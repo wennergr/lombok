@@ -34,6 +34,8 @@ import lombok.core.AST;
 
 import com.sun.tools.javac.code.Symtab;
 import com.sun.tools.javac.model.JavacElements;
+import com.sun.tools.javac.model.JavacTypes;
+import com.sun.tools.javac.processing.JavacProcessingEnvironment;
 import com.sun.tools.javac.tree.JCTree;
 import com.sun.tools.javac.tree.TreeMaker;
 import com.sun.tools.javac.tree.JCTree.JCAnnotation;
@@ -62,6 +64,7 @@ public class JavacAST extends AST<JavacAST, JavacNode, JCTree> {
 	private final TreeMaker treeMaker;
 	private final Symtab symtab;
 	private final Log log;
+	private final JavacProcessingEnvironment environment;
 	private final Context context;
 	
 	/**
@@ -71,10 +74,11 @@ public class JavacAST extends AST<JavacAST, JavacNode, JCTree> {
 	 * @param context A Context object for interfacing with the compiler.
 	 * @param top The compilation unit, which serves as the top level node in the tree to be built.
 	 */
-	public JavacAST(Messager messager, Context context, JCCompilationUnit top) {
+	public JavacAST(Messager messager, JavacProcessingEnvironment environment, JCCompilationUnit top) {
 		super(sourceName(top), packageDeclaration(top), imports(top));
 		setTop(buildCompilationUnit(top));
-		this.context = context;
+		this.context = environment.getContext();
+		this.environment = environment;
 		this.messager = messager;
 		this.log = Log.instance(context);
 		this.elements = JavacElements.instance(context);
@@ -82,7 +86,7 @@ public class JavacAST extends AST<JavacAST, JavacNode, JCTree> {
 		this.symtab = Symtab.instance(context);
 		clearChanged();
 	}
-
+	
 	private static String sourceName(JCCompilationUnit cu) {
 		return cu.sourcefile == null ? null : cu.sourcefile.toString();
 	}
@@ -103,6 +107,14 @@ public class JavacAST extends AST<JavacAST, JavacNode, JCTree> {
 	
 	public Context getContext() {
 		return context;
+	}
+	
+	public JavacTypes getTypeUtils() {
+		return environment.getTypeUtils();
+	}
+	
+	public JavacElements getElementUtils() {
+		return environment.getElementUtils();
 	}
 	
 	/**

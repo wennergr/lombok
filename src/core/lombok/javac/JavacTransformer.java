@@ -23,9 +23,16 @@ package lombok.javac;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.ListIterator;
 
 import javax.annotation.processing.Messager;
 
+import com.sun.tools.javac.code.Symbol.ClassSymbol;
+import com.sun.tools.javac.comp.Check;
+import com.sun.tools.javac.comp.Enter;
+import com.sun.tools.javac.main.JavaCompiler;
+import com.sun.tools.javac.processing.JavacProcessingEnvironment;
+import com.sun.tools.javac.tree.JCTree;
 import com.sun.tools.javac.tree.JCTree.JCAnnotation;
 import com.sun.tools.javac.tree.JCTree.JCClassDecl;
 import com.sun.tools.javac.tree.JCTree.JCCompilationUnit;
@@ -42,15 +49,44 @@ public class JavacTransformer {
 		this.handlers = HandlerLibrary.load(messager);
 	}
 	
-	public boolean transform(Context context, Iterable<JCCompilationUnit> compilationUnits) {
+	/**
+	 * This must be a fresh context; for example the JavaCompiler in it, if any, must not have been used to compile anything yet.
+	 */
+	public boolean transform(Context context, List<JCCompilationUnit> compilationUnits) {
+		JavacProcessingEnvironment environment = new JavacProcessingEnvironment(context, null);
+		Check chk = Check.instance(context);
+		chk.compiled.clear();
+		com.sun.tools.javac.util.List<JCCompilationUnit> list = com.sun.tools.javac.util.List.nil();
+		if (compilationUnits != null && !compilationUnits.isEmpty()) {
+			ListIterator<JCCompilationUnit> it = compilationUnits.listIterator(list.size());
+			while (it.hasPrevious()) list = list.prepend(it.previous());
+		}
+		JavaCompiler.instance(context).enterTrees(list);
+		
+		return transform(environment, compilationUnits);
+	}
+	
+	public boolean transform(JavacProcessingEnvironment environment, Iterable<JCCompilationUnit> compilationUnits) {
 		List<JavacAST> asts = new ArrayList<JavacAST>();
 		
-		for (JCCompilationUnit unit : compilationUnits) asts.add(new JavacAST(messager, context, unit));
+		Context context = environment.getContext();
+		
+		for (JCCompilationUnit unit : compilationUnits) asts.add(new JavacAST(messager, environment, unit));
 		
 		handlers.skipPrintAST();
 		for (JavacAST ast : asts) {
 			ast.traverse(new AnnotationVisitor());
 			handlers.callASTVisitors(ast);
+			if (ast.isChanged()) {
+				JCCompilationUnit top = (JCCompilationUnit) ast.top().get();
+				for (JCTree member : top.defs) {
+					if (member instanceof JCClassDecl) {
+						ClassSymbol sym = ((JCClassDecl)member).sym;
+						if (sym != null) Check.instance(context).compiled.remove(sym.flatname);
+					}
+				}
+				top.accept(Enter.instance(context));
+			}
 		}
 		
 		handlers.skipAllButPrintAST();

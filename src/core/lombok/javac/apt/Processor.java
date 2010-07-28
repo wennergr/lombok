@@ -74,7 +74,7 @@ public class Processor extends AbstractProcessor {
 			if (unit != null) units.put(unit, null);
 		}
 		
-		transformer.transform(processingEnv.getContext(), units.keySet());
+		transformer.transform(processingEnv, units.keySet());
 		
 		return false;
 	}
