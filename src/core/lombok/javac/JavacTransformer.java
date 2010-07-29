@@ -58,7 +58,7 @@ public class JavacTransformer {
 		chk.compiled.clear();
 		com.sun.tools.javac.util.List<JCCompilationUnit> list = com.sun.tools.javac.util.List.nil();
 		if (compilationUnits != null && !compilationUnits.isEmpty()) {
-			ListIterator<JCCompilationUnit> it = compilationUnits.listIterator(list.size());
+			ListIterator<JCCompilationUnit> it = compilationUnits.listIterator(compilationUnits.size());
 			while (it.hasPrevious()) list = list.prepend(it.previous());
 		}
 		JavaCompiler.instance(context).enterTrees(list);
