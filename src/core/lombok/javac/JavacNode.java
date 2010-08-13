@@ -173,7 +173,6 @@ public class JavacNode extends lombok.core.LombokNode<JavacAST, JavacNode, JCTre
 	 */
 	public Element resolve() {
 		Element result = resolve0();
-		System.out.println("result = " + result);
 		if (result == null) return null;
 		
 		Pair<JCTree,JCCompilationUnit> pair = ast.getElementUtils().getTreeAndTopLevel(result, null, null);
